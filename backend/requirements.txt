@@ -1,0 +1,29 @@
+# CRIMENET-X backend runtime requirements
+# These packages are required to run the demo application. Optional
+# production dependencies are listed at the bottom and are commented out.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+python-multipart==0.0.9
+networkx==3.3
+requests==2.32.3
+python-dotenv==1.0.0
+typing-extensions==4.7.1
+
+# Optional / production extras (uncomment if you enable the corresponding service):
+# neo4j==5.24.0          # Neo4j driver (only needed when using GRAPH_BACKEND=neo4j)
+# rapidfuzz==3.9.7       # Faster string matching for large datasets
+# spacy==3.7.5           # NLP processing (heavy dependency)
+# celery==5.4.0          # Background task processing
+# redis==5.0.8           # Broker for Celery / caching
+# sqlalchemy==2.0.35     # If you replace sqlite3 with SQLAlchemy-backed DB
+# alembic==1.13.2        # DB migrations (for SQLAlchemy setups)
+
+# Notes:
+# - The demo uses an in-memory NetworkX graph and sqlite3; the optional
+#   packages are only required for production deployments that replace
+#   the demo components with real services.

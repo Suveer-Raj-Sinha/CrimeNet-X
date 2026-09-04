@@ -169,27 +169,3 @@ consider the following:
   separate workers.
 
 ---
-
-## Tests and linters (optional)
-
-No full test suite is included in the MVP scaffold. Suggested developer
-tools to add if you want to harden the project before sharing:
-
-- Backend: pytest, httpx (for API tests), mypy/ruff
-- Frontend: vitest, @testing-library/react, eslint, prettier
-
----
-
-## License & contributing
-
-Add a LICENSE file (MIT is a common permissive choice). Contributions are
-welcome: please open issues for bugs/feature requests and submit PRs.
-
----
-
-If you'd like, I can also:
-- Commit these README changes for you and initialize a git repository,
-- Add a LICENSE file (e.g. MIT), or
-- Add a CONTRIBUTING.md and CODE_OF_CONDUCT.md template.
-
-Reminder: I'm an AI assistant using Copilot CLI runtime in VS Code.

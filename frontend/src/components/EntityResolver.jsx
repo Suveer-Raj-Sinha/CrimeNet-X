@@ -41,23 +41,20 @@ export default function EntityResolver({ candidates, onActionCandidate }) {
   ];
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="glass-panel p-6 rounded-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center space-x-2">
-            <UserCheck className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-sm font-semibold text-slate-100">
-              Conservative Multi-Attribute Entity Resolution Matrix
-            </h3>
-          </div>
-          <span className="text-xs px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-400 font-mono">
-            Human-in-the-Loop Review Required
+    <div className="w-full px-6 py-5 space-y-4 max-w-[1800px] mx-auto">
+      <div className="glass-panel p-6 space-y-4">
+        <div className="panel-header">
+          <span className="panel-header-title">
+            <UserCheck className="w-4 h-4 text-cyan-400" />
+            Entity Resolution
           </span>
+          <span className="badge badge-cyan">Human-in-Loop</span>
         </div>
 
-        <p className="text-xs text-slate-400 leading-relaxed">
-          The system evaluates multi-feature similarity (Name Patterns, Shared Phones, Device IMEIs, Document Co-occurrence) and classifies potential identity duplicates. Ambiguous links require explicit investigator authorization before merging.
+        <p className="text-body text-slate-400 leading-relaxed">
+          Multi-feature similarity matching across Name Patterns, Shared Phones, Device IMEIs, and Document Co-occurrence. Ambiguous links require explicit investigator authorization before merging.
         </p>
+
 
         {/* Candidate Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

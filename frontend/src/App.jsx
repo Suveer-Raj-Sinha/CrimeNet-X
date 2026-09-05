@@ -10,6 +10,7 @@ import UserManualTab from './components/UserManualTab';
 import HelpModal from './components/HelpModal';
 import LoginPage from './components/LoginPage';
 import DocumentOcrScanner from './components/DocumentOcrScanner';
+import UserDrawer from './components/UserDrawer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('graph');
@@ -18,6 +19,7 @@ export default function App() {
   const [notification, setNotification] = useState(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showLoginView, setShowLoginView] = useState(false);
+  const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
 
   // User authentication state stored in localStorage
   const [currentUser, setCurrentUser] = useState(() => {
@@ -83,7 +85,7 @@ export default function App() {
       console.error('Error removing session:', e);
     }
     setNotification('Session ended. Logged out safely.');
-    setShowLoginView(true);
+    setIsUserDrawerOpen(true);
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -96,7 +98,10 @@ export default function App() {
   if (showLoginView) {
     return (
       <LoginPage
-        onLoginSuccess={handleLoginSuccess}
+        onLoginSuccess={(user) => {
+          handleLoginSuccess(user);
+          setShowLoginView(false);
+        }}
         onGuestProceed={() => setShowLoginView(false)}
       />
     );
@@ -122,21 +127,28 @@ export default function App() {
           onLoadDemo={handleLoadDemo}
           onOpenHelp={() => setIsHelpOpen(true)}
           currentUser={currentUser}
-          onLogout={handleLogout}
-          onOpenLogin={() => setShowLoginView(true)}
+          onOpenUserDrawer={() => setIsUserDrawerOpen(true)}
         />
 
         {/* Main Work Area */}
         <main className="flex-1">
           {activeTab === 'graph' && (
             <GraphViewer
+              caseData={caseData}
               onSelectEntity={(ent) => console.log('Selected entity:', ent)}
               onOpenHelp={() => setIsHelpOpen(true)}
             />
           )}
 
           {activeTab === 'ocr' && (
-            <DocumentOcrScanner />
+            <DocumentOcrScanner
+              onScanComplete={(scanResult) => {
+                fetchCaseData();
+                setNotification(`✓ Scanned intelligence from ${scanResult?.filename || 'document'} successfully ingested into Knowledge Graph, Timeline & Search!`);
+                setTimeout(() => setNotification(null), 5000);
+              }}
+              onNavigateToTab={(tab) => setActiveTab(tab)}
+            />
           )}
 
           {activeTab === 'ingestion' && (
@@ -188,6 +200,34 @@ export default function App() {
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
         onLoadDemo={handleLoadDemo}
+      />
+
+      {/* Peekable Edge Tab for User / Officer Access */}
+      <button
+        onClick={() => setIsUserDrawerOpen(true)}
+        style={{ position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)', zIndex: 9999 }}
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-slate-900/95 hover:bg-slate-800 border-l border-t border-b border-cyan-500/50 hover:border-cyan-400 rounded-l-xl py-3 px-1.5 flex flex-col items-center gap-2 shadow-[0_0_20px_rgba(0,0,0,0.6)] cursor-pointer group transition-all hover:pl-2.5"
+        title="Peek Officer Profile & Credentials"
+      >
+        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+        <div className="w-5 h-5 rounded-md bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 font-bold font-mono text-[10px]">
+          {currentUser?.username?.[0]?.toUpperCase() || 'U'}
+        </div>
+        <span 
+          style={{ writingMode: 'vertical-rl' }}
+          className="text-[9px] font-mono font-bold tracking-widest text-slate-400 group-hover:text-cyan-300 uppercase py-1"
+        >
+          OFFICER
+        </span>
+      </button>
+
+      {/* User Identity & Access Drawer */}
+      <UserDrawer
+        isOpen={isUserDrawerOpen}
+        onClose={() => setIsUserDrawerOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
       />
     </div>
   );

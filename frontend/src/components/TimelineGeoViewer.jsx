@@ -307,7 +307,7 @@ export default function TimelineGeoViewer() {
   };
 
   return (
-    <div className={`p-4 sm:p-6 max-w-7xl mx-auto animate-fade-in relative ${isFullscreen ? 'fixed inset-0 z-[99999] bg-[#060a14] overflow-y-auto p-6' : ''}`}>
+    <div className={`w-full px-6 py-6 max-w-[1800px] mx-auto relative ${isFullscreen ? 'fixed inset-0 z-[99999] bg-[#060a14] overflow-y-auto px-6 py-6' : ''}`}>
       {/* Background Wrapper - Blurs website content when Add Modal is open */}
       <div className={`space-y-6 transition-all duration-300 ${isAddModalOpen ? 'blur-md brightness-40 pointer-events-none select-none' : ''}`}>
         {/* Premium Header Banner */}

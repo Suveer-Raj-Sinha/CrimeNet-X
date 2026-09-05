@@ -41,19 +41,14 @@ export default function ExportDrawer() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="glass-panel p-6 rounded-2xl space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center space-x-2">
-            <FileCode className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-sm font-semibold text-slate-100">
-              CCTNS / NCRB Compliant Standardized JSON & XML Exporter
-            </h3>
-          </div>
-          <span className="text-xs px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-400 font-mono flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-            Interoperable Intelligence Format
+    <div className="w-full px-6 py-6 space-y-5 max-w-[1800px] mx-auto">
+      <div className="glass-panel p-6 space-y-5">
+        <div className="panel-header">
+          <span className="panel-header-title">
+            <FileCode className="w-4 h-4 text-cyan-400" />
+            Case Export
           </span>
+          <span className="badge badge-cyan">CCTNS / NCRB Format</span>
         </div>
 
         {/* Format Toggle & Action Buttons */}

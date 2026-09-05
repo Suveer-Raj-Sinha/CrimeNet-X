@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   UploadCloud,
   FileText,
@@ -17,15 +17,19 @@ import {
   Car,
   RefreshCw,
   Eye,
-  ScanText
+  ScanText,
+  ArrowRight
 } from 'lucide-react';
 
-export default function DocumentOcrScanner() {
+export default function DocumentOcrScanner({ onScanComplete, onNavigateToTab }) {
   const [file, setFile] = useState(null);
   const [scanning, setScanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [activeFormat, setActiveFormat] = useState('json'); // 'json' or 'xml'
   const [extractedResult, setExtractedResult] = useState(null);
   const [copyNotification, setCopyNotification] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const fileInputRef = useRef(null);
 
   const demoDocuments = [
     {
@@ -67,11 +71,13 @@ Nearby Cell Tower Match: +919876543210`
   const handleProcessScan = async (uploadedFile, customText = null, filename = 'document.pdf') => {
     setScanning(true);
     setExtractedResult(null);
+    setErrorMessage(null);
 
     try {
       const formData = new FormData();
       if (uploadedFile) {
         formData.append('file', uploadedFile);
+        formData.append('filename', uploadedFile.name || filename);
       } else if (customText) {
         formData.append('raw_content', customText);
         formData.append('filename', filename);
@@ -82,11 +88,18 @@ Nearby Cell Tower Match: +919876543210`
         body: formData
       });
 
-      if (!res.ok) throw new Error('Document scanning failed');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.detail || `Document scanning failed with status ${res.status}`);
+      }
       const data = await res.json();
       setExtractedResult(data);
+      if (onScanComplete) {
+        onScanComplete(data);
+      }
     } catch (err) {
       console.error('Scan Error:', err);
+      setErrorMessage(err.message || 'Scanning failed. Please check backend connection.');
     } finally {
       setScanning(false);
     }
@@ -125,28 +138,31 @@ Nearby Cell Tower Match: +919876543210`
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="w-full px-6 py-6 space-y-5 max-w-[1800px] mx-auto">
       
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="px-6 py-6 sm:px-8 sm:py-7 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center shrink-0 shadow-lg">
-            <ScanText className="w-6 h-6 text-cyan-400" />
+          <div className="w-11 h-11 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center shrink-0 shadow-md">
+            <ScanText className="w-5 h-5 text-cyan-400" />
           </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
-              Document OCR & Intelligence Scanner
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono font-bold uppercase">
+          <div className="space-y-1.5">
+            <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 flex-wrap" style={{ fontSize: '15px' }}>
+              <span>Document OCR & Intelligence Scanner</span>
+              <span 
+                className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 font-mono font-semibold uppercase tracking-wider"
+                style={{ fontSize: '10px' }}
+              >
                 MULTI-FORMAT OCR
               </span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 leading-relaxed">
               Upload PDF, JPEG, PNG, WEBP, or TXT documents. Scans & extracts entities formatted as <strong>JSON</strong> and <strong>XML</strong>.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
+        <div className="flex items-center space-x-2 text-xs font-mono text-slate-400 pr-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>ENGINE: FAST-OCR v2.4</span>
         </div>
@@ -160,34 +176,95 @@ Nearby Cell Tower Match: +919876543210`
           
           {/* File Drag-and-Drop Card Box */}
           <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleFileDrop}
-            className="p-6 rounded-2xl bg-slate-900/90 border-2 border-dashed border-slate-700 hover:border-cyan-400 transition-all text-center flex flex-col items-center justify-center space-y-3 cursor-pointer group relative overflow-hidden"
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              handleFileDrop(e);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-8 py-9 rounded-2xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center space-y-4 cursor-pointer group relative overflow-hidden select-none ${
+              isDragging
+                ? 'bg-cyan-950/40 border-cyan-400 shadow-xl shadow-cyan-500/20'
+                : 'bg-slate-900/90 border-slate-700 hover:border-cyan-400 hover:bg-slate-850 shadow-lg'
+            }`}
           >
+            {/* Native Hidden File Input (immune to leaking browser unstyled button) */}
             <input
+              ref={fileInputRef}
               type="file"
               onChange={handleFileSelect}
               accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.txt,.csv,.json"
-              className="absolute inset-0 opacity-0 cursor-pointer"
+              style={{ display: 'none' }}
             />
 
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
               <UploadCloud className="w-7 h-7 text-cyan-400" />
             </div>
 
             <div>
               <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                Drag & Drop Document Files Here
+                {isDragging ? 'Drop Document Here to Scan' : 'Drag & Drop Document Files Here'}
               </h3>
               <p className="text-xs text-slate-400 mt-1">
                 Supports PDF, JPEG, PNG, WEBP, TIFF, TXT, CSV
               </p>
             </div>
 
-            <span className="px-3 py-1.5 rounded-lg bg-slate-800 text-cyan-300 font-bold text-xs border border-slate-700">
-              Browse Local Files
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+                color: '#67E8F9',
+                border: '1px solid rgba(6, 182, 212, 0.5)'
+              }}
+            >
+              <FileSearch className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Browse Local Files</span>
+            </button>
           </div>
+
+          {/* Active File Banner */}
+          {file && (
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-cyan-500/40 flex flex-wrap items-center justify-between gap-2.5 shadow-md animate-fadeIn">
+              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                <FileText className="w-4.5 h-4.5 text-cyan-400 shrink-0" />
+                <span className="text-xs font-bold text-slate-100 truncate" title={file.name}>
+                  {file.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProcessScan(file instanceof File ? file : null, file.sampleText || null, file.name);
+                  }}
+                  disabled={scanning}
+                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md active:scale-95"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
+                  <span>{scanning ? 'SCANNING...' : 'SCAN FILE NOW'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-300 text-xs font-medium flex items-center justify-between animate-shake">
+              <span>⚠️ {errorMessage}</span>
+            </div>
+          )}
 
           {/* Preset Sample Documents */}
           <div className="p-4.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
@@ -242,6 +319,33 @@ Nearby Cell Tower Match: +919876543210`
           {extractedResult && !scanning && (
             <div className="space-y-4 animate-fadeIn">
               
+              {/* Live Ingestion Confirmation Banner */}
+              <div className="p-3.5 rounded-xl bg-cyan-950/70 border border-cyan-500/40 flex flex-wrap items-center justify-between gap-3 shadow-md animate-fadeIn">
+                <div className="flex items-center space-x-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="text-xs font-bold text-white block">
+                      Live Ingested to Knowledge Graph & Case Timeline
+                    </span>
+                    <span className="text-[11px] text-slate-300">
+                      {extractedResult.newly_added_entities 
+                        ? `${extractedResult.newly_added_entities} new entities & relationships registered in CASE-2026-001` 
+                        : 'Entities and relationships active in Knowledge Graph'}
+                    </span>
+                  </div>
+                </div>
+                {onNavigateToTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToTab('graph')}
+                    className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md cursor-pointer hover:scale-105"
+                  >
+                    <span>View in Knowledge Graph</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
               {/* Extracted Entity Metric Summary Badges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/30 flex items-center space-x-2.5">
@@ -296,11 +400,16 @@ Nearby Cell Tower Match: +919876543210`
                     <button
                       type="button"
                       onClick={() => setActiveFormat('json')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                        activeFormat === 'json'
-                          ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
-                          : 'bg-slate-800 text-slate-300 hover:text-white'
-                      }`}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer"
+                      style={activeFormat === 'json' ? {
+                        background: 'linear-gradient(135deg, #22D3EE 0%, #06B6D4 100%)',
+                        color: '#020617',
+                        boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)'
+                      } : {
+                        background: 'rgba(30, 41, 59, 0.7)',
+                        color: '#CBD5E1',
+                        border: '1px solid rgba(51, 65, 85, 0.8)'
+                      }}
                     >
                       <Code2 className="w-3.5 h-3.5" />
                       <span>JSON Format</span>
@@ -309,11 +418,16 @@ Nearby Cell Tower Match: +919876543210`
                     <button
                       type="button"
                       onClick={() => setActiveFormat('xml')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                        activeFormat === 'xml'
-                          ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
-                          : 'bg-slate-800 text-slate-300 hover:text-white'
-                      }`}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer"
+                      style={activeFormat === 'xml' ? {
+                        background: 'linear-gradient(135deg, #22D3EE 0%, #06B6D4 100%)',
+                        color: '#020617',
+                        boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)'
+                      } : {
+                        background: 'rgba(30, 41, 59, 0.7)',
+                        color: '#CBD5E1',
+                        border: '1px solid rgba(51, 65, 85, 0.8)'
+                      }}
                     >
                       <FileCode2 className="w-3.5 h-3.5" />
                       <span>XML Format</span>
@@ -330,7 +444,7 @@ Nearby Cell Tower Match: +919876543210`
                           : extractedResult.xml_data,
                         activeFormat
                       )}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center space-x-1 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                       title="Copy to Clipboard"
                     >
                       <Copy className="w-3.5 h-3.5 text-cyan-400" />
@@ -346,7 +460,7 @@ Nearby Cell Tower Match: +919876543210`
                         extractedResult.filename,
                         activeFormat
                       )}
-                      className="px-2.5 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-bold flex items-center space-x-1 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
                       title="Download Extracted File"
                     >
                       <Download className="w-3.5 h-3.5 text-cyan-400" />
@@ -370,14 +484,18 @@ Nearby Cell Tower Match: +919876543210`
             </div>
           )}
 
-          {/* Initial State Helper Box */}
+          {/* Initial State Helper Box (Simplified & Clean) */}
           {!extractedResult && !scanning && (
-            <div className="p-12 rounded-2xl bg-slate-900/60 border border-slate-800 text-center space-y-3">
-              <FileSearch className="w-10 h-10 text-slate-600 mx-auto" />
-              <h3 className="text-sm font-bold text-slate-300">No Document Scanned Yet</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Upload a document file on the left or select a sample case file to view extracted JSON & XML intelligence output.
-              </p>
+            <div className="p-12 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-center flex flex-col items-center justify-center space-y-3 min-h-[380px]">
+              <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+                <FileSearch className="w-6 h-6 text-slate-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-slate-300">No Document Scanned Yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+                  Upload a document or select a sample file on the left to view extracted JSON and XML intelligence.
+                </p>
+              </div>
             </div>
           )}
 

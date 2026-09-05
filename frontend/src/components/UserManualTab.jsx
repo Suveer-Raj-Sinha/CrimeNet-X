@@ -31,7 +31,7 @@ export default function UserManualTab({ setActiveTab, onLoadDemo }) {
   ];
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="w-full px-6 py-6 space-y-5 max-w-[1800px] mx-auto">
       {/* Tab Banner Header */}
       <div className="glass-panel p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/30">
         <div className="flex items-center space-x-3">

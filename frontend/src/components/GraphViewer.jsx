@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 
 export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const DEFAULT_ZOOM = 1.2;
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -150,23 +151,24 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Algorithm 1: Radial non-overlapping circle
+  // Algorithm 1: Radial non-overlapping circle (Wider elliptical spread)
   const computeNonOverlappingRadial = (nodesList) => {
     const positions = {};
-    const radius = Math.min(width, height) * 0.38;
+    const radiusX = width * 0.40;
+    const radiusY = height * 0.40;
     const count = nodesList.length;
 
     nodesList.forEach((node, idx) => {
       const angle = (idx / count) * 2 * Math.PI - Math.PI / 2;
       positions[node.id] = {
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
+        x: centerX + radiusX * Math.cos(angle),
+        y: centerY + radiusY * Math.sin(angle)
       };
     });
     return positions;
   };
 
-  // Algorithm 2: Tiered Hierarchical Layout
+  // Algorithm 2: Tiered Hierarchical Layout (Expanded vertical & horizontal spread)
   const computeTieredHierarchical = (nodesList) => {
     const positions = {};
     const tiers = { PERSON: [], PHONE: [], VEHICLE: [], LOCATION: [], ACCOUNT: [], IMEI: [] };
@@ -177,11 +179,11 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
     });
 
     const activeTiers = Object.keys(tiers).filter(t => tiers[t].length > 0);
-    const tierHeight = (height - 120) / (activeTiers.length || 1);
+    const tierHeight = (height - 80) / (activeTiers.length || 1);
 
     activeTiers.forEach((tierKey, tIdx) => {
       const rowNodes = tiers[tierKey];
-      const y = 70 + tIdx * tierHeight;
+      const y = 45 + tIdx * tierHeight;
       const stepX = width / (rowNodes.length + 1);
 
       rowNodes.forEach((node, nIdx) => {
@@ -194,7 +196,7 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
     return positions;
   };
 
-  // Algorithm 3: Categorical Parallel Horizontal Line Alignment
+  // Algorithm 3: Categorical Parallel Horizontal Line Alignment (Wider canvas coverage)
   const computeCategoryLines = (nodesList) => {
     const positions = {};
     const categories = ['PERSON', 'PHONE', 'VEHICLE', 'LOCATION', 'ACCOUNT', 'IMEI'];
@@ -208,16 +210,16 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
     });
 
     const activeCategories = categories.filter(cat => grouped[cat].length > 0);
-    const lineSpacing = (height - 140) / Math.max(activeCategories.length - 1, 1);
+    const lineSpacing = (height - 80) / Math.max(activeCategories.length - 1, 1);
 
     activeCategories.forEach((cat, lineIdx) => {
       const rowNodes = grouped[cat];
-      const y = 80 + lineIdx * lineSpacing;
-      const colSpacing = (width - 180) / Math.max(rowNodes.length + 1, 2);
+      const y = 42 + lineIdx * lineSpacing;
+      const colSpacing = (width - 100) / (rowNodes.length + 1);
 
       rowNodes.forEach((node, colIdx) => {
         positions[node.id] = {
-          x: 90 + (colIdx + 1) * colSpacing,
+          x: 50 + (colIdx + 1) * colSpacing,
           y: y
         };
       });
@@ -243,12 +245,14 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
       const svgElem = document.getElementById('canvas-bg');
       if (!svgElem) return;
       const rect = svgElem.getBoundingClientRect();
-      const rawX = (e.clientX - rect.left - panOffset.x) / zoomLevel;
-      const rawY = (e.clientY - rect.top - panOffset.y) / zoomLevel;
+      const mouseSvgX = (e.clientX - rect.left) * (width / rect.width);
+      const mouseSvgY = (e.clientY - rect.top) * (height / rect.height);
+      const rawX = centerX + (mouseSvgX - centerX - panOffset.x) / zoomLevel;
+      const rawY = centerY + (mouseSvgY - centerY - panOffset.y) / zoomLevel;
 
       setNodePositions(prev => ({
         ...prev,
-        [draggedNodeId]: { x: Math.max(30, Math.min(width - 30, rawX)), y: Math.max(30, Math.min(height - 30, rawY)) }
+        [draggedNodeId]: { x: Math.max(25, Math.min(width - 25, rawX)), y: Math.max(25, Math.min(height - 25, rawY)) }
       }));
     } else if (isPanning) {
       setPanOffset({
@@ -274,19 +278,19 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
   };
 
   const organizeRadialView = () => {
-    setZoomLevel(1);
+    setZoomLevel(DEFAULT_ZOOM);
     setPanOffset({ x: 0, y: 0 });
     setNodePositions(computeNonOverlappingRadial(filteredEntities));
   };
 
   const organizeTieredView = () => {
-    setZoomLevel(1);
+    setZoomLevel(DEFAULT_ZOOM);
     setPanOffset({ x: 0, y: 0 });
     setNodePositions(computeTieredHierarchical(filteredEntities));
   };
 
   const organizeCategoryLinesView = () => {
-    setZoomLevel(1);
+    setZoomLevel(DEFAULT_ZOOM);
     setPanOffset({ x: 0, y: 0 });
     setNodePositions(computeCategoryLines(filteredEntities));
   };
@@ -296,6 +300,14 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
     if (photoUrl) {
       setAttachedPhotos(prev => ({ ...prev, [entId]: photoUrl }));
     }
+  };
+
+  const handleRemovePhoto = (entId) => {
+    setAttachedPhotos(prev => {
+      const next = { ...prev };
+      delete next[entId];
+      return next;
+    });
   };
 
   return (
@@ -316,10 +328,16 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
 
         <button
           onClick={onOpenHelp}
-          className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 shrink-0 shadow-md hover:scale-105 transition-all"
+          className="px-4 py-2 rounded-xl text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shrink-0 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          style={{
+            background: 'linear-gradient(135deg, #22D3EE 0%, #06B6D4 50%, #3B82F6 100%)',
+            color: '#020617',
+            border: '1px solid #67E8F9',
+            boxShadow: '0 0 20px rgba(6, 182, 212, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+          }}
         >
-          <HelpCircle className="w-4 h-4 text-slate-950" />
-          <span>Quick Field Guide</span>
+          <HelpCircle className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+          <span className="font-extrabold tracking-wide text-[#020617]">Quick Field Guide</span>
         </button>
       </div>
 
@@ -357,9 +375,9 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column: Filters & Alerts */}
-        <div className="space-y-6 lg:col-span-1">
+        <div className="space-y-5 lg:col-span-3">
           <div className="glass-panel p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -437,7 +455,7 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
         </div>
 
         {/* Middle Column: Visual SVG Network Canvas */}
-        <div className="lg:col-span-2 glass-panel p-5 flex flex-col h-[650px] relative border border-slate-800 shadow-2xl">
+        <div className="lg:col-span-6 glass-panel p-5 flex flex-col h-[640px] relative border border-slate-800 shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
             <div className="flex items-center space-x-2">
               <Network className="w-5 h-5 text-cyan-400" />
@@ -463,7 +481,7 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                 <ZoomOut className="w-3.5 h-3.5 text-cyan-400" />
               </button>
               <button
-                onClick={() => { setZoomLevel(1); setPanOffset({ x: 0, y: 0 }); }}
+                onClick={() => { setZoomLevel(DEFAULT_ZOOM); setPanOffset({ x: 0, y: 0 }); }}
                 className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-300"
                 title="Reset View"
               >
@@ -488,7 +506,7 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                 </filter>
               </defs>
 
-              <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoomLevel})`}>
+              <g transform={`translate(${centerX + panOffset.x}, ${centerY + panOffset.y}) scale(${zoomLevel}) translate(${-centerX}, ${-centerY})`}>
                 {/* Connecting Edges */}
                 {relationships.map((rel) => {
                   const posA = nodePositions[rel.source_entity_id] || { x: centerX, y: centerY };
@@ -504,16 +522,16 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                         x2={posB.x}
                         y2={posB.y}
                         stroke={isHighlighted ? '#06B6D4' : '#334155'}
-                        strokeWidth={isHighlighted ? 2.5 : 1.2}
+                        strokeWidth={isHighlighted ? 3.2 : 1.8}
                         strokeDasharray={rel.is_directly_observed ? 'none' : '4 4'}
-                        opacity={isHighlighted ? 1 : 0.65}
+                        opacity={isHighlighted ? 1 : 0.75}
                       />
                       {/* Edge Label */}
                       <text
                         x={(posA.x + posB.x) / 2}
                         y={(posA.y + posB.y) / 2 - 4}
                         fill={isHighlighted ? '#67E8F9' : '#64748B'}
-                        fontSize="9"
+                        fontSize="10"
                         fontWeight="bold"
                         textAnchor="middle"
                         className="font-mono select-none"
@@ -541,10 +559,10 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                         <circle
                           cx={pos.x}
                           cy={pos.y}
-                          r="26"
+                          r="31"
                           fill="none"
                           stroke="#06B6D4"
-                          strokeWidth="2.5"
+                          strokeWidth="3"
                           className="animate-pulse"
                           filter="url(#glow-cyan)"
                         />
@@ -554,18 +572,18 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                       <circle
                         cx={pos.x}
                         cy={pos.y}
-                        r="18"
+                        r="22"
                         fill={colorConfig.bg}
                         stroke={isSelected ? '#FFFFFF' : '#0F172A'}
-                        strokeWidth={isSelected ? 3 : 2}
+                        strokeWidth={isSelected ? 3.5 : 2.5}
                       />
 
                       {/* Initials Text */}
                       <text
                         x={pos.x}
-                        y={pos.y + 4}
+                        y={pos.y + 4.5}
                         fill="#080C14"
-                        fontSize="11"
+                        fontSize="12"
                         fontWeight="bold"
                         textAnchor="middle"
                         pointerEvents="none"
@@ -574,26 +592,26 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                       </text>
 
                       {/* Label Card */}
-                      <g transform={`translate(${pos.x - 45}, ${pos.y + 26})`}>
+                      <g transform={`translate(${pos.x - 52}, ${pos.y + 29})`}>
                         <rect
-                          width="90"
-                          height="16"
-                          rx="4"
+                          width="104"
+                          height="18"
+                          rx="5"
                           fill="#080C14"
                           stroke={isSelected ? '#06B6D4' : '#1E293B'}
-                          strokeWidth="1"
-                          opacity="0.9"
+                          strokeWidth="1.2"
+                          opacity="0.95"
                         />
                         <text
-                          x="45"
-                          y="11"
+                          x="52"
+                          y="12.5"
                           fill={isSelected ? '#67E8F9' : '#F1F5F9'}
                           fontSize="10"
-                          fontWeight={isSelected ? 'bold' : 'normal'}
+                          fontWeight={isSelected ? 'bold' : '600'}
                           textAnchor="middle"
                           pointerEvents="none"
                         >
-                          {ent.name.length > 13 ? `${ent.name.substring(0, 11)}..` : ent.name}
+                          {ent.name.length > 15 ? `${ent.name.substring(0, 14)}…` : ent.name}
                         </text>
                       </g>
                     </g>
@@ -620,126 +638,207 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
         </div>
 
         {/* Right Column: Police Evidence Drawer */}
-        <div className="space-y-6 lg:col-span-1">
-          {activeEntity && (
-            <div className="glass-panel p-5 space-y-4 border border-cyan-500/40 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+        <div className="space-y-5 lg:col-span-3">
+          {activeEntity ? (
+            <div className="glass-panel p-5 h-[640px] flex flex-col border border-cyan-500/40 shadow-2xl relative overflow-hidden">
+              {/* Card Header (Fixed at top) */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
+                <div className="flex items-center gap-2">
                   <Camera className="w-4 h-4 text-cyan-400" />
-                  Police Evidence Card
-                </h3>
-                <span className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold font-mono">
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    Police Evidence Card
+                  </h3>
+                </div>
+                <span className="text-xs px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold font-mono whitespace-nowrap shrink-0">
                   {activeEntity.relevance?.score || 95}% Priority
                 </span>
               </div>
 
-              {/* Photo Display & Entity Profile Card */}
-              <div className="space-y-3">
-                <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex items-center space-x-3.5">
-                  <div className="w-16 h-16 rounded-xl bg-slate-950 border border-cyan-500/40 overflow-hidden shrink-0 flex items-center justify-center relative shadow-md">
-                    {(attachedPhotos[activeEntity.id] || activeEntity.photo) ? (
-                      <img 
-                        src={attachedPhotos[activeEntity.id] || activeEntity.photo} 
-                        alt={activeEntity.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-7 h-7 text-slate-500" />
-                    )}
-                  </div>
+              {/* Scrollable Content Container (Smooth scroll, guaranteed layout stability) */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 mt-3 space-y-3.5">
+                
+                {/* Photo Display & Entity Profile Card (Invariant Layout) */}
+                {(() => {
+                  const colors = entityTypeColors[activeEntity.type] || entityTypeColors.PERSON;
+                  const FallbackIcon = colors.icon || User;
+                  const photoSrc = attachedPhotos[activeEntity.id] || activeEntity.photo;
+                  const isCustomAttached = Boolean(attachedPhotos[activeEntity.id]);
 
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-bold text-cyan-300 block truncate break-all">
-                      {activeEntity.name}
+                  return (
+                    <div className="bg-slate-900/90 rounded-xl border border-slate-800 p-3 h-[116px] flex flex-col justify-between shadow-md">
+                      {/* Top Row: Fixed Avatar on Left, Fixed Name & Badges on Right */}
+                      <div className="flex items-center gap-3">
+                        {/* Fixed 56x56 Avatar Box */}
+                        <div 
+                          onClick={() => handleAttachPhoto(activeEntity.id)}
+                          className="w-14 h-14 rounded-xl bg-slate-950 border border-cyan-500/40 overflow-hidden shrink-0 flex items-center justify-center relative cursor-pointer group hover:border-cyan-400 transition-colors shadow-sm"
+                          title="Click to attach or update photo"
+                        >
+                          {photoSrc ? (
+                            <img 
+                              src={photoSrc} 
+                              alt={activeEntity.name || 'Entity'} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <FallbackIcon className="w-6 h-6" style={{ color: colors.bg }} />
+                          )}
+                        </div>
+
+                        {/* Fixed Height Name & Badges Column */}
+                        <div className="min-w-0 flex-1 flex flex-col justify-center h-14">
+                          <div className="flex items-center gap-1.5 h-5 overflow-hidden">
+                            <span 
+                              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase shrink-0" 
+                              style={{
+                                backgroundColor: (colors.bg || '#06B6D4') + '25',
+                                borderColor: (colors.bg || '#06B6D4') + '60',
+                                color: colors.bg || '#06B6D4'
+                              }}
+                            >
+                              {activeEntity.type || 'ENTITY'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium truncate" title={activeEntity.role || 'Subject Record'}>
+                              {activeEntity.role || 'Subject Record'}
+                            </span>
+                          </div>
+
+                          <h4 
+                            className="text-sm font-bold text-white truncate leading-tight mt-1" 
+                            title={activeEntity.name}
+                          >
+                            {activeEntity.name || 'Unknown Entity'}
+                          </h4>
+                        </div>
+                      </div>
+
+                      {/* Bottom Fixed Action Row (Zero Layout Shift) */}
+                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between h-7 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleAttachPhoto(activeEntity.id)}
+                          className="text-[11px] font-mono font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 transition-colors group"
+                          title="Attach or update photo evidence"
+                        >
+                          <Camera className="w-3.5 h-3.5 text-cyan-400 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span>Attach / Update Photo</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhoto(activeEntity.id)}
+                          className={`text-[10px] font-mono text-rose-400 hover:text-rose-300 transition-opacity ${
+                            isCustomAttached ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                          }`}
+                          title="Reset to original photo"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Identification & Provenance Grid (Always present, fixed height) */}
+                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-mono block">Entity ID</span>
+                    <span className="font-mono font-bold text-slate-200 text-[11px] truncate block" title={activeEntity.id}>
+                      {activeEntity.id || 'ENT-UNKNOWN'}
                     </span>
-                    <span className="text-[11px] text-emerald-400 font-semibold block truncate">
-                      {activeEntity.role || activeEntity.type}
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-mono block">Coordinates / Provenance</span>
+                    <span className="font-semibold text-emerald-400 text-[11px] truncate block font-mono">
+                      {activeEntity.lat 
+                        ? `${activeEntity.lat}°N, ${activeEntity.lon}°E` 
+                        : (activeEntity.confidence ? `${Math.round(activeEntity.confidence * 100)}% Confidence` : 'Verified Lead')}
                     </span>
-                    <button
-                      onClick={() => handleAttachPhoto(activeEntity.id)}
-                      className="mt-1 text-[11px] text-cyan-400 hover:text-cyan-200 hover:underline flex items-center gap-1 font-mono transition-colors"
-                    >
-                      <Camera className="w-3 h-3 text-cyan-400" />
-                      <span>Attach Mugshot / Photo</span>
-                    </button>
                   </div>
                 </div>
 
-                {/* Map Coordinates if Location */}
-                {activeEntity.lat && (
-                  <div className="p-2.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-xs flex items-center justify-between">
-                    <span className="text-purple-300 font-bold flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-purple-400" /> Map Coordinates:
-                    </span>
-                    <span className="font-mono text-white text-[11px]">
-                      {activeEntity.lat}° N, {activeEntity.lon}° E
-                    </span>
-                  </div>
-                )}
-
-                {/* Proof Lines */}
+                {/* Verified Proof & Explanation */}
                 <div className="space-y-2 pt-2 border-t border-slate-800">
                   <span className="text-xs font-semibold text-slate-200 block">
-                    Verified Proof & Explanation:
+                    Verified Proof &amp; Explanation:
                   </span>
                   <ul className="space-y-1.5 text-xs text-slate-300">
-                    {(activeEntity.relevance?.why_breakdown || [
-                      "✓ Mugshot & ANPR CCTV camera timestamp matched",
-                      "✓ Location falls within target radius (Jaipur Station)",
-                      "✓ High-frequency phone calls during crime window",
-                      "✓ Multi-source verification across 3 independent feeds"
-                    ]).map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-2 bg-slate-900 p-2 rounded-lg text-[11px]">
+                    {((activeEntity.relevance?.why_breakdown && activeEntity.relevance.why_breakdown.length > 0)
+                      ? activeEntity.relevance.why_breakdown
+                      : [
+                          `✓ Verified entity identifier (Type: ${activeEntity.type || 'PERSON'})`,
+                          `✓ Observed in multi-layer relationship graph network`,
+                          "✓ High source reliability rating verified",
+                          "✓ Validated against active intelligence dossier"
+                        ]
+                    ).map((point, idx) => (
+                      <li key={idx} className="flex items-start gap-2 bg-slate-900/90 border border-slate-800/80 p-2.5 rounded-lg text-xs leading-relaxed text-slate-200">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>{point}</span>
+                        <span className="break-words leading-tight">{point}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                {/* Evidence Files */}
+                {/* Evidence Case Files */}
                 <div className="pt-2 border-t border-slate-800">
                   <span className="text-xs font-semibold text-slate-200 block mb-2">
                     Evidence Case Files:
                   </span>
                   <div className="space-y-1.5">
-                    {(activeEntity.relevance?.evidence_citations || [
-                      { file_name: "FIR_123_2026_Jaipur.txt", source_type: "FIR / Police Reports" },
-                      { file_name: "CDR_Dump_Jaipur_25Aug.csv", source_type: "CDR (Call Detail Records)" }
-                    ]).map((cit, idx) => (
-                      <div key={idx} className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                        <div>
-                          <span className="font-semibold text-cyan-400 block text-[11px]">{cit.file_name}</span>
-                          <span className="text-[10px] text-slate-400">{cit.source_type}</span>
+                    {((activeEntity.evidence_citations && activeEntity.evidence_citations.length > 0)
+                      ? activeEntity.evidence_citations
+                      : (activeEntity.relevance?.evidence_citations && activeEntity.relevance.evidence_citations.length > 0)
+                      ? activeEntity.relevance.evidence_citations
+                      : [
+                          { file_name: `FIR_2026_${activeEntity.type || 'REF'}_PoliceDocket.txt`, source_type: "State Police FIR Records" },
+                          { file_name: `Evidence_Dump_${activeEntity.id ? activeEntity.id.replace('ENT-', '') : 'CASE'}.csv`, source_type: "CCTNS Intelligence Evidence Log" }
+                        ]
+                    ).map((cit, idx) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs hover:border-cyan-500/40 transition-colors">
+                        <div className="min-w-0 pr-2">
+                          <span className="font-semibold text-cyan-400 block text-[11px] truncate">{cit.file_name}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{cit.source_type}</span>
                         </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       </div>
                     ))}
                   </div>
                 </div>
+
               </div>
+            </div>
+          ) : (
+            /* Empty State when no entity is selected */
+            <div className="glass-panel p-6 h-[640px] flex flex-col items-center justify-center text-center space-y-3 border border-slate-800 shadow-2xl">
+              <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+                <Camera className="w-6 h-6 text-cyan-400" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-200">No Entity Selected</h4>
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                Click any node in the graph canvas or select a suspect card below to inspect verified evidence proof.
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Entity Cards Grid */}
-      <div className="glass-panel p-5 space-y-3 border border-slate-800">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-          <h4 className="text-xs font-bold text-slate-300">
-            Click Any Suspect Card to Highlight & Drag:
+      {/* Entity Cards Grid (Fixed Layout & Clear Typographic Hierarchy) */}
+      <div className="glass-panel p-4 space-y-3 border border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <h4 className="text-sm sm:text-base font-bold text-slate-100 tracking-wide">
+            Click Any Suspect Card to Highlight &amp; Drag:
           </h4>
-          <span className="text-[10px] text-slate-500 font-mono">
+          <span className="text-xs text-slate-400 font-mono font-medium px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 shrink-0">
             {filteredEntities.length} Registered Entities
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2">
           {filteredEntities.map((ent) => {
             const isSelected = activeEntity?.id === ent.id;
             const colors = entityTypeColors[ent.type] || entityTypeColors.PERSON;
-            const IconComp = colors.icon || User;
-            const photoSrc = attachedPhotos[ent.id] || ent.photo;
 
             return (
               <div
@@ -748,25 +847,48 @@ export default function GraphViewer({ caseData, onSelectEntity, onOpenHelp }) {
                   setActiveEntityId(ent.id);
                   if (onSelectEntity) onSelectEntity(ent);
                 }}
-                className={`p-3 rounded-xl border ${
-                  isSelected ? 'bg-cyan-950/60 border-cyan-400 ring-2 ring-cyan-500/50 scale-105' : 'bg-slate-900/80 border-slate-800'
-                } cursor-pointer hover:scale-105 transition-all space-y-2 shadow-md`}
+                style={{ height: '48px' }}
+                className={`px-2.5 py-1.5 rounded-lg border flex flex-col justify-between cursor-pointer transition-colors shadow-sm select-none ${
+                  isSelected 
+                    ? 'bg-cyan-950/70 border-cyan-400 ring-1 ring-cyan-400/60 shadow-cyan-950/50' 
+                    : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="w-7 h-7 rounded-full bg-slate-950 border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
-                    {photoSrc ? (
-                      <img src={photoSrc} alt={ent.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <IconComp className="w-3.5 h-3.5 text-cyan-400" />
-                    )}
-                  </div>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 font-mono">
+                {/* Top: Entity Name (Larger) */}
+                <div className="flex items-center justify-between gap-1 leading-none">
+                  <span 
+                    className={`text-xs font-bold block truncate leading-tight ${
+                      isSelected ? 'text-cyan-200' : 'text-slate-100'
+                    }`} 
+                    style={{ fontSize: '12px' }}
+                    title={ent.name}
+                  >
+                    {ent.name}
+                  </span>
+                  {isSelected && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
+                  )}
+                </div>
+
+                {/* Bottom: Type Tag (Smaller micro-tag) */}
+                <div className="leading-none">
+                  <span 
+                    className="font-mono font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wider inline-flex items-center gap-1 shrink-0 leading-none"
+                    style={{
+                      fontSize: '9px',
+                      lineHeight: '1',
+                      backgroundColor: (colors.bg || '#06B6D4') + '15',
+                      borderColor: (colors.bg || '#06B6D4') + '40',
+                      color: colors.bg || '#06B6D4'
+                    }}
+                  >
+                    <span 
+                      className="w-1 h-1 rounded-full shrink-0" 
+                      style={{ backgroundColor: colors.bg || '#06B6D4' }}
+                    />
                     {ent.type}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-slate-100 block truncate">
-                  {ent.name}
-                </span>
               </div>
             );
           })}

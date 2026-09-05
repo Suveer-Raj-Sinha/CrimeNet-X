@@ -13,6 +13,7 @@ networkx==3.3
 requests==2.32.3
 python-dotenv==1.0.0
 typing-extensions>=4.12.0
+pypdf>=4.0.0
 
 # Optional / production extras (uncomment if you enable the corresponding service):
 # neo4j==5.24.0          # Neo4j driver (only needed when using GRAPH_BACKEND=neo4j)

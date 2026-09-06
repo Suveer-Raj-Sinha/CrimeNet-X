@@ -1,4 +1,4 @@
-# CRIMENET-X 🛡️🔍
+# CRIMENET-X 🛡️🔍🖥️
 ### Next-Generation Law Enforcement Intelligence & Knowledge Graph Platform
 
 CRIMENET-X is an enterprise-grade, investigative intelligence and case-management platform designed for criminal intelligence analysts, cyber investigators, and law enforcement agencies. It pairs a high-performance **FastAPI** backend (featuring in-memory **NetworkX** graph analytics with pluggable **Neo4j** enterprise scaling) with an ultra-responsive **React + Vite** tactical dark-mode operations console.
